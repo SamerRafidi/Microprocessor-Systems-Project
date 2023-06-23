@@ -102,8 +102,8 @@ void PortJ_Init(void){
     while((SYSCTL_PRGPIO_R&SYSCTL_PRGPIO_R8) == 0){};    // allow time for clock to stabilize
     GPIO_PORTJ_DIR_R &= ~0x02;                                            // make PJ1 in 
     GPIO_PORTJ_DEN_R |= 0x02;                                             // enable digital I/O on PJ1
-    GPIO_PORTJ_PCTL_R &= ~0x000000F0;                                     //  configure PJ1 as GPIO 
-    GPIO_PORTJ_AMSEL_R &= ~0x02;                                            //  disable analog functionality on PJ1        
+    GPIO_PORTJ_PCTL_R &= ~0x000000F0;                                     //Â  configure PJ1 as GPIO 
+    GPIO_PORTJ_AMSEL_R &= ~0x02;                                            //Â Â disable analog functionality on PJ1        
     GPIO_PORTJ_PUR_R |= 0x02;                                                    //    enable weak pull up resistor
 }
 
@@ -183,6 +183,7 @@ int main(void) {
 	UART_Init();
 	
 	// hello world!
+	// Prints some text in the output box when the code is being ran
 	UART_printf("Program Begins\r\n");
 	int mynumber = 1;
 	sprintf(printf_buffer,"2DX4 Program Studio Code %d\r\n",mynumber);
@@ -190,15 +191,17 @@ int main(void) {
 
 
 /* Those basic I2C read functions can be used to check your own I2C functions */
+	// Gets the ToF model ID
 	status = VL53L1X_GetSensorId(dev, &wordData);
-
+	//Prints the model ID
 	sprintf(printf_buffer,"(Model_ID, Module_Type)=0x%x\r\n",wordData);
 	UART_printf(printf_buffer);
 
 	// Booting ToF chip
+	// Goes through a loop that keeps running until the system is booted (1)
 	while(sensorState==0){
 		status = VL53L1X_BootState(dev, &sensorState); // Checks if the sensor is booted (Good to check that the sensor finishes booting before it access I2C)
-		SysTick_Wait10ms(10);
+		SysTick_Wait10ms(10); // 10ms delay between each iteration
   }
 	FlashAllLEDs();
 	UART_printf("ToF Chip Booted!\r\n Please Wait...\r\n");
@@ -206,8 +209,8 @@ int main(void) {
 	status = VL53L1X_ClearInterrupt(dev); // clear interrupt has to be called to enable next interrupt
 	
   /* This function must to be called to initialize the sensor with the default setting  */
-  status = VL53L1X_SensorInit(dev); // SensorInit is called to initialize the snsor (default = 10 Hz)
-	Status_Check("SensorInit", status);
+  status = VL53L1X_SensorInit(dev); // SensorInit is called to initialize the sensor (default = 10 Hz)
+	Status_Check("SensorInit", status); // CHecks the status of the sensor and handles any errors
 
 	// 1000/16 mill * 10^6
 	  /*for(int i = 0; i<24000000; i++){
@@ -216,25 +219,26 @@ int main(void) {
    }
 		*/
 	while(1){
-		status = VL53L1X_StartRanging(dev);   														//This function has to be called to enable the ranging
+		status = VL53L1X_StartRanging(dev);            //This function has to be called to enable the ranging
 		if((GPIO_PORTJ_DATA_R&0b00000010) == 0){
 			int j = 64;
 			Restart:
-				for(int i = 0; i < j; i++) {																		//Get the Distance Measures 64 times because j = 64
-					int degrees = 5.625*i;
-					while (dataReady == 0){																				//wait until the ToF sensor's data is ready
-						status = VL53L1X_CheckForDataReady(dev, &dataReady);
+				for(int i = 0; i < j; i++) {  // Get the Distance Measures 64 times because j = 64
+					int degrees = 5.625*i; // 360 degrees
+					while (dataReady == 0){  //wait until the ToF sensor's data is ready
+						status = VL53L1X_CheckForDataReady(dev, &dataReady); //checks if the ToF sensors data is ready to be read
 						FlashLED3(1);
 						VL53L1_WaitMs(dev, 5);
 					}
 					dataReady = 0;
-																																				//read the data values from ToF sensor
-					status = VL53L1X_GetDistance(dev, &Distance);								//The Measured Distance value
+					
+					//read the data values from ToF sensor
+					status = VL53L1X_GetDistance(dev, &Distance);	//The Measured Distance value
 					FlashLED4(1);
-					status = VL53L1X_ClearInterrupt(dev); 											//clear interrupt has to be called to enable next interrupt
-					double distance = Distance;																	// New variable used to store decimals																		
+					status = VL53L1X_ClearInterrupt(dev); 		//clear interrupt has to be called to enable next interrupt
+					double distance = Distance;			// Create a new variable to store decimals																															
 					sprintf(printf_buffer,"%f\r\n", distance/1000);            	// print the resulted readings to UART
-					UART_printf(printf_buffer);
+					UART_printf(printf_buffer);   // Print the resulting reads to UART
 					spin(0);
 					SysTick_Wait10ms(1);
 				}
